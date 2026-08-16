@@ -71,5 +71,5 @@ jobs:
               echo "API_HOST=${{ secrets.API_HOST || 'http://127.0.0.1:3333' }}"
             } > .env
             docker load -i bminder-frontend.tar.gz
-            docker compose up -d --no-build --force-recreate
+            docker-compose up -d --no-build --force-recreate
             rm -f bminder-frontend.tar.gz
