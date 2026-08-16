@@ -1,0 +1,13 @@
+services:
+  frontend:
+    image: bminder-frontend:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      args:
+        API_HOST: ${API_HOST:-http://127.0.0.1:3333}
+    container_name: bminder-frontend
+    ports:
+      - "${HOST:-0.0.0.0}:${PORT:-5173}:80"
+    environment:
+      API_HOST: ${API_HOST:-http://127.0.0.1:3333}
+    restart: unless-stopped

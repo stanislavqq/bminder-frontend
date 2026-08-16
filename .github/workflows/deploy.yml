@@ -1,0 +1,75 @@
+# Deploy frontend image to a remote host over SSH.
+#
+# Required GitHub secrets:
+#   SSH_HOST          — server hostname or IP
+#   SSH_USER          — SSH username
+#   SSH_PRIVATE_KEY   — private key for SSH/SCP
+#
+# Optional GitHub secrets:
+#   SSH_PORT          — SSH port (default: 22)
+#   DEPLOY_PATH       — remote directory (default: /opt/bminder-frontend)
+#   HOST              — bind address on the server (default: 0.0.0.0)
+#   PORT              — published host port (default: 5173)
+#   API_HOST          — backend origin, e.g. https://api.example.com
+#
+name: Build and deploy
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/bminder-frontend' }}
+      SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t bminder-frontend:latest -t bminder-frontend:${{ github.sha }} .
+
+      - name: Save image
+        run: docker save bminder-frontend:latest | gzip > bminder-frontend.tar.gz
+
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ env.SSH_PORT }}
+          script: mkdir -p "${{ env.DEPLOY_PATH }}"
+
+      - name: Copy image and compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ env.SSH_PORT }}
+          source: bminder-frontend.tar.gz,docker-compose.yml
+          target: ${{ env.DEPLOY_PATH }}
+          overwrite: true
+
+      - name: Load image and restart container
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ env.SSH_PORT }}
+          script: |
+            set -euo pipefail
+            cd "${{ env.DEPLOY_PATH }}"
+            {
+              echo "HOST=${{ secrets.HOST || '0.0.0.0' }}"
+              echo "PORT=${{ secrets.PORT || '5173' }}"
+              echo "API_HOST=${{ secrets.API_HOST || 'http://127.0.0.1:3333' }}"
+            } > .env
+            docker load -i bminder-frontend.tar.gz
+            docker compose up -d --no-build --force-recreate
+            rm -f bminder-frontend.tar.gz
