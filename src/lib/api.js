@@ -57,8 +57,8 @@ export function deletePerson(id) {
 export function fromApi(person) {
   return {
     id: person.id,
-    firstName: person.firstname ?? '',
-    lastName: person.lastname ?? '',
+    firstName: person.first_name ?? '',
+    lastName: person.last_name ?? '',
     day: person.day,
     month: person.month,
     year: person.year ?? null,
@@ -68,8 +68,8 @@ export function fromApi(person) {
 
 export function toPayload(entry) {
   return {
-    firstname: entry.firstName.trim(),
-    lastname: entry.lastName.trim(),
+    first_name: entry.firstName.trim(),
+    last_name: entry.lastName.trim(),
     day: Number(entry.day),
     month: Number(entry.month),
     year: entry.year ? Number(entry.year) : null,
